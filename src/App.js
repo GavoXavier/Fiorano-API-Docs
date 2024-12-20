@@ -1,28 +1,19 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Navbar from "./components/Navbar"; // Import Navbar
 import AdminLogin from "./pages/Admin/AdminLogin";
 import AdminDashboard from "./pages/Admin/AdminDashboard";
 import ManageCategories from "./pages/Admin/ManageCategories";
 import ManageAPIs from "./pages/Admin/ManageAPIs";
-
-// Layout Component for Admin Pages
-const AdminLayout = ({ children }) => (
-  <div>
-    <Navbar /> {/* Include Navbar for admin pages */}
-    <main>{children}</main>
-  </div>
-);
+import AddAPI from "./pages/Admin/AddAPI"; // Import AddAPI Component
+import EditAPI from "./pages/Admin/EditAPI"; // Import EditAPI Component
+import AdminLayout from "./components/AdminLayout"; // Import AdminLayout
 
 function App() {
   return (
     <Router>
       <Routes>
         {/* Admin Routes */}
-        <Route
-          path="/admin/login"
-          element={<AdminLogin />} // No Navbar for login
-        />
+        <Route path="/admin/login" element={<AdminLogin />} />
         <Route
           path="/admin/dashboard"
           element={
@@ -44,6 +35,22 @@ function App() {
           element={
             <AdminLayout>
               <ManageAPIs />
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/admin/add-api"
+          element={
+            <AdminLayout>
+              <AddAPI />
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/admin/edit-api/:id"
+          element={
+            <AdminLayout>
+              <EditAPI />
             </AdminLayout>
           }
         />
