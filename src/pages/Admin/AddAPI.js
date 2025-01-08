@@ -2,10 +2,10 @@ import React, { useState, useEffect } from "react";
 import { db } from "../../firebase";
 import { collection, getDocs, addDoc } from "firebase/firestore";
 
-// Predefined JSON templates
+// Default templates for fields
 const defaultHeaders = JSON.stringify(
   {
-    "Authorization": "Bearer YOUR_TOKEN_HERE",
+    Authorization: "Bearer YOUR_TOKEN_HERE",
     "Content-Type": "application/json",
   },
   null,
@@ -32,6 +32,17 @@ const defaultResponseExample = JSON.stringify(
   2
 );
 
+const defaultIntegrationCode = `
+curl --request POST \\
+--url https://example.com/api/endpoint \\
+--header 'Authorization: Bearer YOUR_TOKEN_HERE' \\
+--header 'Content-Type: application/json' \\
+--data '{
+  "key1": "value1",
+  "key2": "value2"
+}'
+`;
+
 const AddAPI = () => {
   const [categories, setCategories] = useState([]);
   const [formData, setFormData] = useState({
@@ -43,22 +54,29 @@ const AddAPI = () => {
     responseExample: defaultResponseExample,
     description: "",
     categoryId: "",
-    exampleIntegration: "",
+    exampleIntegration: defaultIntegrationCode,
+    dataType: "raw",
+    formData: [{ key: "", value: "" }], // Key-value for form-data or x-www-form-urlencoded
+    graphqlQuery: "",
+    graphqlVariables: JSON.stringify({}, null, 2), // GraphQL default
   });
 
-  // Fetch categories
+  // Fetch categories from Firestore
   useEffect(() => {
     const fetchCategories = async () => {
       const categorySnapshot = await getDocs(collection(db, "categories"));
       setCategories(
-        categorySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+        categorySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
       );
     };
 
     fetchCategories();
   }, []);
 
-  // Validate JSON inputs
+  // Validate JSON input
   const isValidJSON = (str) => {
     try {
       JSON.parse(str);
@@ -73,27 +91,44 @@ const AddAPI = () => {
     e.preventDefault();
 
     if (!isValidJSON(formData.headers)) {
-      alert("Headers field must contain valid JSON.");
+      alert("Headers must be a valid JSON.");
       return;
     }
-    if (!isValidJSON(formData.requestBody)) {
-      alert("Request Body field must contain valid JSON.");
+    if (!isValidJSON(formData.requestBody) && formData.dataType === "raw") {
+      alert("Request Body must be a valid JSON.");
       return;
     }
     if (!isValidJSON(formData.responseExample)) {
-      alert("Response Example field must contain valid JSON.");
+      alert("Response Example must be a valid JSON.");
+      return;
+    }
+    if (!isValidJSON(formData.graphqlVariables) && formData.dataType === "graphql") {
+      alert("GraphQL Variables must be valid JSON.");
       return;
     }
 
-    const data = {
+    // Prepare requestBody based on dataType
+    const requestBody =
+      formData.dataType === "raw"
+        ? JSON.parse(formData.requestBody)
+        : formData.dataType === "form-data" || formData.dataType === "x-www-form-urlencoded"
+        ? Object.fromEntries(formData.formData.map((field) => [field.key, field.value]))
+        : formData.dataType === "graphql"
+        ? {
+            query: formData.graphqlQuery,
+            variables: JSON.parse(formData.graphqlVariables),
+          }
+        : null;
+
+    const apiData = {
       ...formData,
       headers: JSON.parse(formData.headers),
-      requestBody: JSON.parse(formData.requestBody),
       responseExample: JSON.parse(formData.responseExample),
+      requestBody,
     };
 
     try {
-      await addDoc(collection(db, "apis"), data);
+      await addDoc(collection(db, "apiv2"), apiData);
       alert("API added successfully!");
       setFormData({
         name: "",
@@ -104,7 +139,11 @@ const AddAPI = () => {
         responseExample: defaultResponseExample,
         description: "",
         categoryId: "",
-        exampleIntegration: "",
+        exampleIntegration: defaultIntegrationCode,
+        dataType: "raw",
+        formData: [{ key: "", value: "" }],
+        graphqlQuery: "",
+        graphqlVariables: JSON.stringify({}, null, 2),
       });
     } catch (error) {
       console.error("Error adding API:", error);
@@ -112,30 +151,33 @@ const AddAPI = () => {
     }
   };
 
-  // Reset individual fields
-  const resetField = (field) => {
-    switch (field) {
-      case "headers":
-        setFormData({ ...formData, headers: defaultHeaders });
-        break;
-      case "requestBody":
-        setFormData({ ...formData, requestBody: defaultRequestBody });
-        break;
-      case "responseExample":
-        setFormData({ ...formData, responseExample: defaultResponseExample });
-        break;
-      default:
-        break;
-    }
+  // Handle form field updates
+  const handleInputChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleFormDataChange = (index, field, value) => {
+    const updatedFormData = [...formData.formData];
+    updatedFormData[index][field] = value;
+    setFormData({ ...formData, formData: updatedFormData });
+  };
+
+  const addFormDataField = () => {
+    setFormData({
+      ...formData,
+      formData: [...formData.formData, { key: "", value: "" }],
+    });
+  };
+
+  const removeFormDataField = (index) => {
+    const updatedFormData = formData.formData.filter((_, i) => i !== index);
+    setFormData({ ...formData, formData: updatedFormData });
   };
 
   return (
     <div className="p-6 min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white">
       <h1 className="text-2xl font-bold mb-4">Add New API</h1>
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white dark:bg-gray-800 p-4 rounded shadow"
-      >
+      <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 p-6 rounded shadow">
         <div className="mb-4">
           <label htmlFor="name" className="block text-sm font-medium">
             API Name
@@ -143,9 +185,10 @@ const AddAPI = () => {
           <input
             type="text"
             id="name"
+            name="name"
             value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="mt-1 p-2 w-full border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            onChange={handleInputChange}
+            className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white"
             required
           />
         </div>
@@ -156,11 +199,10 @@ const AddAPI = () => {
           <input
             type="text"
             id="endpoint"
+            name="endpoint"
             value={formData.endpoint}
-            onChange={(e) =>
-              setFormData({ ...formData, endpoint: e.target.value })
-            }
-            className="mt-1 p-2 w-full border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            onChange={handleInputChange}
+            className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white"
             required
           />
         </div>
@@ -170,112 +212,28 @@ const AddAPI = () => {
           </label>
           <select
             id="method"
+            name="method"
             value={formData.method}
-            onChange={(e) =>
-              setFormData({ ...formData, method: e.target.value })
-            }
-            className="mt-1 p-2 w-full border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            onChange={handleInputChange}
+            className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white"
           >
-            <option value="GET">GET</option>
-            <option value="POST">POST</option>
-            <option value="PUT">PUT</option>
-            <option value="DELETE">DELETE</option>
-            <option value="PATCH">PATCH</option>
-            <option value="OPTIONS">OPTIONS</option>
-            <option value="HEAD">HEAD</option>
+            {["GET", "POST", "PUT", "DELETE", "PATCH"].map((method) => (
+              <option key={method} value={method}>
+                {method}
+              </option>
+            ))}
           </select>
         </div>
         <div className="mb-4">
-          <label htmlFor="headers" className="block text-sm font-medium">
-            Headers (JSON)
-          </label>
-          <textarea
-            id="headers"
-            value={formData.headers}
-            onChange={(e) =>
-              setFormData({ ...formData, headers: e.target.value })
-            }
-            className="mt-1 p-2 w-full border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            rows="4"
-          />
-          <button
-            type="button"
-            onClick={() => resetField("headers")}
-            className="mt-1 text-sm text-blue-500 underline"
-          >
-            Reset to Default
-          </button>
-        </div>
-        <div className="mb-4">
-          <label htmlFor="requestBody" className="block text-sm font-medium">
-            Request Body (JSON)
-          </label>
-          <textarea
-            id="requestBody"
-            value={formData.requestBody}
-            onChange={(e) =>
-              setFormData({ ...formData, requestBody: e.target.value })
-            }
-            className="mt-1 p-2 w-full border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            rows="4"
-          />
-          <button
-            type="button"
-            onClick={() => resetField("requestBody")}
-            className="mt-1 text-sm text-blue-500 underline"
-          >
-            Reset to Default
-          </button>
-        </div>
-        <div className="mb-4">
-          <label htmlFor="responseExample" className="block text-sm font-medium">
-            Response Example (JSON)
-          </label>
-          <textarea
-            id="responseExample"
-            value={formData.responseExample}
-            onChange={(e) =>
-              setFormData({ ...formData, responseExample: e.target.value })
-            }
-            className="mt-1 p-2 w-full border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            rows="4"
-          />
-          <button
-            type="button"
-            onClick={() => resetField("responseExample")}
-            className="mt-1 text-sm text-blue-500 underline"
-          >
-            Reset to Default
-          </button>
-        </div>
-        <div className="mb-4">
-          <label htmlFor="description" className="block text-sm font-medium">
-            Description
-          </label>
-          <textarea
-            id="description"
-            value={formData.description}
-            onChange={(e) =>
-              setFormData({ ...formData, description: e.target.value })
-            }
-            className="mt-1 p-2 w-full border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            rows="3"
-          />
-        </div>
-        <div className="mb-4">
-          <label
-            htmlFor="categoryId"
-            className="block text-sm font-medium"
-          >
-            Assign to Category
+          <label htmlFor="categoryId" className="block text-sm font-medium">
+            Category
           </label>
           <select
             id="categoryId"
+            name="categoryId"
             value={formData.categoryId}
-            onChange={(e) =>
-              setFormData({ ...formData, categoryId: e.target.value })
-            }
-            className="mt-1 p-2 w-full border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            onChange={handleInputChange}
+            className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white"
           >
             <option value="">Select a category</option>
             {categories.map((category) => (
@@ -285,10 +243,157 @@ const AddAPI = () => {
             ))}
           </select>
         </div>
-        <button
-          type="submit"
-          className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
-        >
+        <div className="mb-4">
+          <label htmlFor="dataType" className="block text-sm font-medium">
+            Request Body Type
+          </label>
+          <div className="flex space-x-4">
+            {["none", "form-data", "x-www-form-urlencoded", "raw", "binary", "graphql"].map((type) => (
+              <label key={type} className="flex items-center space-x-2">
+                <input
+                  type="radio"
+                  name="dataType"
+                  value={type}
+                  checked={formData.dataType === type}
+                  onChange={handleInputChange}
+                  className="dark:bg-gray-700 dark:border-gray-600"
+                />
+                <span className="capitalize">{type}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Conditional request body fields */}
+        {formData.dataType === "raw" && (
+          <div className="mb-4">
+            <label htmlFor="requestBody" className="block text-sm font-medium">
+              Raw JSON
+            </label>
+            <textarea
+              id="requestBody"
+              name="requestBody"
+              value={formData.requestBody}
+              onChange={handleInputChange}
+              className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white"
+              rows="5"
+            />
+          </div>
+        )}
+        {(formData.dataType === "form-data" || formData.dataType === "x-www-form-urlencoded") && (
+          <div className="mb-4">
+            <label className="block text-sm font-medium">Key-Value Pairs</label>
+            {formData.formData.map((field, index) => (
+              <div key={index} className="flex items-center space-x-2 mb-2">
+                <input
+                  type="text"
+                  placeholder="Key"
+                  value={field.key}
+                  onChange={(e) => handleFormDataChange(index, "key", e.target.value)}
+                  className="p-2 border rounded dark:bg-gray-700 dark:text-white"
+                />
+                <input
+                  type="text"
+                  placeholder="Value"
+                  value={field.value}
+                  onChange={(e) => handleFormDataChange(index, "value", e.target.value)}
+                  className="p-2 border rounded dark:bg-gray-700 dark:text-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeFormDataField(index)}
+                  className="text-red-500"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <button type="button" onClick={addFormDataField} className="text-blue-500">
+              Add Field
+            </button>
+          </div>
+        )}
+        {formData.dataType === "binary" && (
+          <div className="mb-4">
+            <label htmlFor="binaryFile" className="block text-sm font-medium">
+              Binary File
+            </label>
+            <input type="file" id="binaryFile" className="w-full p-2 border rounded dark:bg-gray-700" />
+          </div>
+        )}
+        {formData.dataType === "graphql" && (
+          <>
+            <div className="mb-4">
+              <label htmlFor="graphqlQuery" className="block text-sm font-medium">
+                Query
+              </label>
+              <textarea
+                id="graphqlQuery"
+                name="graphqlQuery"
+                value={formData.graphqlQuery}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white"
+                rows="5"
+              />
+            </div>
+            <div className="mb-4">
+              <label htmlFor="graphqlVariables" className="block text-sm font-medium">
+                Variables
+              </label>
+              <textarea
+                id="graphqlVariables"
+                name="graphqlVariables"
+                value={formData.graphqlVariables}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white"
+                rows="5"
+              />
+            </div>
+          </>
+        )}
+
+        <div className="mb-4">
+          <label htmlFor="exampleIntegration" className="block text-sm font-medium">
+            Integration Code (cURL)
+          </label>
+          <textarea
+            id="exampleIntegration"
+            name="exampleIntegration"
+            value={formData.exampleIntegration}
+            onChange={handleInputChange}
+            className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white"
+            rows="5"
+          />
+        </div>
+
+        <div className="mb-4">
+          <label htmlFor="responseExample" className="block text-sm font-medium">
+            Response Example (JSON)
+          </label>
+          <textarea
+            id="responseExample"
+            name="responseExample"
+            value={formData.responseExample}
+            onChange={handleInputChange}
+            className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white"
+            rows="5"
+          />
+        </div>
+        <div className="mb-4">
+          <label htmlFor="description" className="block text-sm font-medium">
+            Description
+          </label>
+          <textarea
+            id="description"
+            name="description"
+            value={formData.description}
+            onChange={handleInputChange}
+            className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white"
+            rows="3"
+          />
+        </div>
+
+        <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
           Add API
         </button>
       </form>

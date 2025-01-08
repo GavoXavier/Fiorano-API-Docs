@@ -9,6 +9,8 @@ import {
   faSignOutAlt,
   faSun,
   faMoon,
+  faUpload,
+  faEdit,
 } from "@fortawesome/free-solid-svg-icons";
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
@@ -46,7 +48,11 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div
+      className={`${
+        isOpen ? "w-64" : "w-20"
+      } bg-white dark:bg-gray-900 text-gray-800 dark:text-white h-screen transition-all duration-300 fixed flex flex-col shadow-lg`}
+    >
       {/* Hamburger Button */}
       <button
         className="p-4 text-gray-700 dark:text-gray-300 focus:outline-none"
@@ -82,6 +88,24 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
           >
             <FontAwesomeIcon icon={faLayerGroup} />
             {isOpen && <span>Manage Categories</span>}
+          </NavLink>
+        </li>
+        <li>
+          <NavLink
+            to="/admin/import-apis"
+            className="flex items-center space-x-4 p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+          >
+            <FontAwesomeIcon icon={faUpload} />
+            {isOpen && <span>Import APIs</span>}
+          </NavLink>
+        </li>
+        <li>
+          <NavLink
+            to="/admin/edit-api"
+            className="flex items-center space-x-4 p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+          >
+            <FontAwesomeIcon icon={faEdit} />
+            {isOpen && <span>Edit APIs</span>}
           </NavLink>
         </li>
       </ul>

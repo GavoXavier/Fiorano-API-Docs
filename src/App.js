@@ -4,9 +4,11 @@ import AdminLogin from "./pages/Admin/AdminLogin";
 import AdminDashboard from "./pages/Admin/AdminDashboard";
 import ManageCategories from "./pages/Admin/ManageCategories";
 import ManageAPIs from "./pages/Admin/ManageAPIs";
-import AddAPI from "./pages/Admin/AddAPI"; // Import AddAPI Component
-import EditAPI from "./pages/Admin/EditAPI"; // Import EditAPI Component
-import AdminLayout from "./components/AdminLayout"; // Import AdminLayout
+import AddAPI from "./pages/Admin/AddAPI";
+import EditAPI from "./pages/Admin/EditAPI";
+import AdminLayout from "./components/AdminLayout";
+import MigrateAPIs from "./pages/Admin/MigrateAPIs";
+import ImportAPIs from "./pages/Admin/ImportAPIs";
 
 function App() {
   return (
@@ -47,10 +49,26 @@ function App() {
           }
         />
         <Route
-          path="/admin/edit-api/:id"
+          path="/admin/edit-api"
           element={
             <AdminLayout>
               <EditAPI />
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/admin/migrate-apis"
+          element={
+            <AdminLayout>
+              <MigrateAPIs />
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/admin/import-apis"
+          element={
+            <AdminLayout>
+              <ImportAPIs />
             </AdminLayout>
           }
         />

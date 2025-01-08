@@ -1,298 +1,93 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
 import { db } from "../../firebase";
-import { doc, getDoc, updateDoc, getDocs, collection } from "firebase/firestore";
-
-// Default JSON templates
-const defaultHeaders = JSON.stringify(
-  {
-    Authorization: "Bearer YOUR_TOKEN_HERE",
-    "Content-Type": "application/json",
-  },
-  null,
-  2
-);
-
-const defaultRequestBody = JSON.stringify(
-  {
-    key1: "value1",
-    key2: "value2",
-  },
-  null,
-  2
-);
-
-const defaultResponseExample = JSON.stringify(
-  {
-    status: "success",
-    data: {
-      exampleKey: "exampleValue",
-    },
-  },
-  null,
-  2
-);
+import { collection, getDocs } from "firebase/firestore";
+import EditAPIOverview from "./EditAPIOverview";
 
 const EditAPI = () => {
-  const { id } = useParams(); // Get API ID from the URL
-  const navigate = useNavigate();
-
-  const [formData, setFormData] = useState({
-    name: "",
-    endpoint: "",
-    method: "GET",
-    headers: defaultHeaders,
-    requestBody: defaultRequestBody,
-    responseExample: defaultResponseExample,
-    description: "",
-    categoryId: "",
-    exampleIntegration: "",
-  });
-
+  const [apis, setApis] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedApi, setSelectedApi] = useState(null);
+  const [filteredApis, setFilteredApis] = useState([]);
 
-  // Fetch API Details and Categories
+  // Fetch APIs and Categories
   useEffect(() => {
-    const fetchAPI = async () => {
-      const apiRef = doc(db, "apis", id);
-      const apiDoc = await getDoc(apiRef);
-
-      if (apiDoc.exists()) {
-        const apiData = apiDoc.data();
-        setFormData({
-          name: apiData.name,
-          endpoint: apiData.endpoint,
-          method: apiData.method,
-          headers: JSON.stringify(apiData.headers, null, 2),
-          requestBody: JSON.stringify(apiData.requestBody, null, 2),
-          responseExample: JSON.stringify(apiData.responseExample, null, 2),
-          description: apiData.description,
-          categoryId: apiData.categoryId,
-          exampleIntegration: apiData.exampleIntegration,
-        });
+    const fetchAPIsAndCategories = async () => {
+      try {
+        const apiSnapshot = await getDocs(collection(db, "apiv2"));
+        const categorySnapshot = await getDocs(collection(db, "categories"));
+        setApis(apiSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setCategories(
+          categorySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+        );
+      } catch (error) {
+        console.error("Error fetching APIs or categories:", error);
       }
     };
+    fetchAPIsAndCategories();
+  }, []);
 
-    const fetchCategories = async () => {
-      const categorySnapshot = await getDocs(collection(db, "categories"));
-      setCategories(
-        categorySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-      );
-    };
-
-    fetchAPI();
-    fetchCategories();
-  }, [id]);
-
-  // Validate JSON inputs
-  const isValidJSON = (str) => {
-    try {
-      JSON.parse(str);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  };
-
-  // Handle Form Submission
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!isValidJSON(formData.headers)) {
-      alert("Headers must be valid JSON.");
-      return;
-    }
-    if (!isValidJSON(formData.requestBody)) {
-      alert("Request Body must be valid JSON.");
-      return;
-    }
-    if (!isValidJSON(formData.responseExample)) {
-      alert("Response Example must be valid JSON.");
-      return;
-    }
-
-    const updatedData = {
-      ...formData,
-      headers: JSON.parse(formData.headers || "{}"),
-      requestBody: JSON.parse(formData.requestBody || "{}"),
-      responseExample: JSON.parse(formData.responseExample || "{}"),
-    };
-
-    const apiRef = doc(db, "apis", id);
-    await updateDoc(apiRef, updatedData);
-
-    alert("API updated successfully!");
-    navigate("/admin/dashboard");
-  };
+  // Filter APIs by search term
+  useEffect(() => {
+    const filtered = apis.filter((api) =>
+      api.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredApis(filtered);
+  }, [searchTerm, apis]);
 
   return (
-    <div className="p-6 bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white min-h-screen">
-      <h1 className="text-2xl font-bold mb-4">Edit API</h1>
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white dark:bg-gray-800 p-6 rounded shadow-md max-w-3xl mx-auto"
-      >
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1" htmlFor="name">
-            API Name
-          </label>
-          <input
-            type="text"
-            id="name"
-            value={formData.name}
-            onChange={(e) =>
-              setFormData({ ...formData, name: e.target.value })
-            }
-            className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
-            required
-          />
-        </div>
-
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1" htmlFor="endpoint">
-            Endpoint
-          </label>
-          <input
-            type="text"
-            id="endpoint"
-            value={formData.endpoint}
-            onChange={(e) =>
-              setFormData({ ...formData, endpoint: e.target.value })
-            }
-            className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
-            required
-          />
-        </div>
-
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1" htmlFor="method">
-            Method
-          </label>
-          <select
-            id="method"
-            value={formData.method}
-            onChange={(e) =>
-              setFormData({ ...formData, method: e.target.value })
-            }
-            className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
+    <div className="p-6 bg-gray-100 dark:bg-gray-900 min-h-screen text-gray-800 dark:text-white">
+      <h1 className="text-2xl font-bold mb-6">Edit API</h1>
+      <input
+        type="text"
+        placeholder="Search APIs..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        className="mb-6 p-2 w-full border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+      />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredApis.map((api) => (
+          <div
+            key={api.id}
+            className="bg-white dark:bg-gray-800 p-4 rounded shadow group hover:shadow-lg cursor-pointer"
+            onClick={() => setSelectedApi(api)}
           >
-            <option value="GET">GET</option>
-            <option value="POST">POST</option>
-            <option value="PUT">PUT</option>
-            <option value="DELETE">DELETE</option>
-            <option value="PATCH">PATCH</option>
-          </select>
-        </div>
-
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1" htmlFor="headers">
-            Headers (JSON)
-          </label>
-          <textarea
-            id="headers"
-            value={formData.headers}
-            onChange={(e) =>
-              setFormData({ ...formData, headers: e.target.value })
-            }
-            className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
-            rows="5"
-          />
-        </div>
-
-        <div className="mb-4">
-          <label
-            className="block text-sm font-medium mb-1"
-            htmlFor="requestBody"
-          >
-            Request Body (JSON)
-          </label>
-          <textarea
-            id="requestBody"
-            value={formData.requestBody}
-            onChange={(e) =>
-              setFormData({ ...formData, requestBody: e.target.value })
-            }
-            className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
-            rows="5"
-          />
-        </div>
-
-        <div className="mb-4">
-          <label
-            className="block text-sm font-medium mb-1"
-            htmlFor="responseExample"
-          >
-            Response Example (JSON)
-          </label>
-          <textarea
-            id="responseExample"
-            value={formData.responseExample}
-            onChange={(e) =>
-              setFormData({ ...formData, responseExample: e.target.value })
-            }
-            className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
-            rows="5"
-          />
-        </div>
-
-        <div className="mb-4">
-          <label
-            className="block text-sm font-medium mb-1"
-            htmlFor="exampleIntegration"
-          >
-            Example Integration
-          </label>
-          <textarea
-            id="exampleIntegration"
-            value={formData.exampleIntegration}
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                exampleIntegration: e.target.value,
-              })
-            }
-            className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
-            rows="3"
-          />
-        </div>
-
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1" htmlFor="categoryId">
-            Assign to Category
-          </label>
-          <select
-            id="categoryId"
-            value={formData.categoryId}
-            onChange={(e) =>
-              setFormData({ ...formData, categoryId: e.target.value })
-            }
-            className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
-          >
-            <option value="">Select a Category</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex justify-end space-x-4">
-          <button
-            type="button"
-            onClick={() => navigate("/admin/dashboard")}
-            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            Update API
-          </button>
-        </div>
-      </form>
+            <h3 className="text-lg font-bold">{api.name}</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+              {api.endpoint}
+            </p>
+            <span
+              className={`px-3 py-1 rounded-full text-xs ${
+                api.method === "GET"
+                  ? "bg-green-100 text-green-800"
+                  : api.method === "POST"
+                  ? "bg-blue-100 text-blue-800"
+                  : api.method === "PUT"
+                  ? "bg-yellow-100 text-yellow-800"
+                  : api.method === "DELETE"
+                  ? "bg-red-100 text-red-800"
+                  : "bg-purple-100 text-purple-800"
+              }`}
+            >
+              {api.method}
+            </span>
+          </div>
+        ))}
+      </div>
+      {selectedApi && (
+        <EditAPIOverview
+          api={selectedApi}
+          categories={categories}
+          closeModal={() => setSelectedApi(null)}
+          updateAPI={(updatedApi) => {
+            setApis((prevApis) =>
+              prevApis.map((api) =>
+                api.id === updatedApi.id ? updatedApi : api
+              )
+            );
+          }}
+        />
+      )}
     </div>
   );
 };
