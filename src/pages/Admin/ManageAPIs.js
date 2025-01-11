@@ -87,12 +87,6 @@ const ManageAPIs = () => {
                 </td>
                 <td className="p-2 space-x-2">
                   <button
-                    onClick={() => navigate(`/admin/edit-api/${api.id}`)}
-                    className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
-                  >
-                    Edit
-                  </button>
-                  <button
                     onClick={() => handleDelete(api.id)}
                     className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
                   >

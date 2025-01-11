@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { db } from "../../firebase";
 import { collection, getDocs } from "firebase/firestore";
-import { useNavigate } from "react-router-dom";
 
 const AdminDashboard = () => {
   const [categories, setCategories] = useState([]);
@@ -10,7 +9,6 @@ const AdminDashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedApi, setSelectedApi] = useState(null); // Holds the selected API for the dialog box
-  const navigate = useNavigate();
 
   // Fetch Categories and APIs
   useEffect(() => {
@@ -115,7 +113,7 @@ const AdminDashboard = () => {
       {/* API Details Dialog */}
       {selectedApi && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-3/4 max-w-3xl">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-3/4 max-w-3xl overflow-y-auto">
             <h2 className="text-2xl font-bold mb-4">{selectedApi.name}</h2>
             <div className="overflow-auto max-h-96">
               <table className="table-auto w-full text-left text-sm">
@@ -164,12 +162,6 @@ const AdminDashboard = () => {
               </table>
             </div>
             <div className="flex justify-end space-x-4 mt-6">
-              <button
-                onClick={() => navigate(`/admin/edit-api/${selectedApi.id}`)}
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-              >
-                Edit
-              </button>
               <button
                 onClick={() => setSelectedApi(null)}
                 className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
