@@ -1,174 +1,278 @@
-// src/pages/Admin/ImportAPIs.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { db } from "../../firebase";
-import { collection, addDoc, getDocs } from "firebase/firestore";
-import Papa from "papaparse";
-import * as pdfjsLib from "pdfjs-dist";
+import { collection, getDocs, addDoc } from "firebase/firestore";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+const defaultAPIData = {
+  name: "",
+  endpoint: "",
+  method: "GET",
+  headers: [],
+  queryParams: [],
+  requestBody: "",
+  description: "",
+  categoryId: "",
+  exampleIntegration: "",
+  responseExample: "",
+};
 
 const ImportAPIs = () => {
-  const [file, setFile] = useState(null);
-  const [parsedData, setParsedData] = useState([]);
-  const [error, setError] = useState("");
+  const [categories, setCategories] = useState([]);
+  const [analyzedAPIs, setAnalyzedAPIs] = useState([]);
+  const [currentAPI, setCurrentAPI] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const handleFileUpload = (e) => {
-    const uploadedFile = e.target.files[0];
-    if (uploadedFile) {
-      setFile(uploadedFile);
-      setParsedData([]);
-      setError("");
-    }
-  };
+  // Fetch categories from Firestore
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const categorySnapshot = await getDocs(collection(db, "categories"));
+      setCategories(
+        categorySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+      );
+    };
+    fetchCategories();
+  }, []);
 
-  const parsePDF = async (file) => {
+  // Handle File Upload
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
     const reader = new FileReader();
-    return new Promise((resolve, reject) => {
-      reader.onload = async (e) => {
-        const pdfData = new Uint8Array(e.target.result);
-        try {
-          const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
-          const extractedData = [];
-
-          for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const textContent = await page.getTextContent();
-            const pageText = textContent.items
-              .map((item) => item.str)
-              .join(" ");
-            extractedData.push(pageText);
-          }
-
-          resolve(extractedData);
-        } catch (err) {
-          reject(`Failed to parse PDF: ${err.message}`);
-        }
-      };
-
-      reader.onerror = (err) => {
-        reject(`File reading error: ${err.message}`);
-      };
-
-      reader.readAsArrayBuffer(file);
-    });
+    reader.onload = (e) => {
+      try {
+        const jsonData = JSON.parse(e.target.result);
+        analyzeJSON(jsonData);
+      } catch (error) {
+        alert("Invalid JSON file.");
+        console.error(error);
+      }
+    };
+    reader.readAsText(file);
   };
 
-  const parseCSV = async (file) => {
-    return new Promise((resolve, reject) => {
-      Papa.parse(file, {
-        header: true,
-        complete: (results) => resolve(results.data),
-        error: (err) => reject(`Error parsing CSV: ${err.message}`),
-      });
-    });
-  };
-
-  const handleFileProcess = async () => {
-    if (!file) {
-      setError("Please upload a file to proceed.");
-      return;
-    }
-
-    setLoading(true);
+  // Analyze and Map the JSON Data
+  const analyzeJSON = (jsonData) => {
+    let apis = [];
     try {
-      let data = [];
-      if (file.type === "text/csv") {
-        data = await parseCSV(file);
-      } else if (file.type === "application/pdf") {
-        const extractedText = await parsePDF(file);
-        // Implement logic to structure PDF data into API format
-        data = extractedText.map((text) => ({
-          name: null,
-          endpoint: null,
-          method: null,
-          headers: null,
-          requestBody: null,
-          responseExample: null,
-          description: null,
-          categoryId: null,
-          exampleIntegration: null,
-          rawText: text, // Store raw text for manual processing if needed
-        }));
+      if (Array.isArray(jsonData)) {
+        apis = mapPostmanCollection(jsonData);
+      } else if (jsonData.item) {
+        apis = mapPostmanCollection(jsonData.item);
       } else {
-        setError("Unsupported file type. Please upload a CSV or PDF file.");
-        setLoading(false);
+        alert("Unsupported JSON format.");
         return;
       }
+      setAnalyzedAPIs(apis);
+    } catch (error) {
+      alert("Error analyzing the file.");
+      console.error(error);
+    }
+  };
 
-      setParsedData(data);
-    } catch (err) {
-      setError(err);
+  // Map Postman Collection to Your Schema
+  const mapPostmanCollection = (items) => {
+    return items.map((item) => {
+      const endpoint = item.request?.url?.raw || item.request?.url;
+      const method = item.request?.method || "GET";
+      const headers = (item.request?.header || []).map((h) => ({
+        key: h.key,
+        value: h.value,
+      }));
+      const queryParams = item.request?.url?.query || [];
+      const requestBody = item.request?.body?.raw || "";
+      const description = item.name || "";
+      const exampleIntegration = generateCurlCommand(method, endpoint, headers, requestBody);
+
+      return {
+        ...defaultAPIData,
+        name: item.name || "",
+        endpoint,
+        method,
+        headers,
+        queryParams: queryParams.map((q) => ({ key: q.key, value: q.value })),
+        requestBody,
+        description,
+        exampleIntegration,
+      };
+    });
+  };
+
+  // Generate cURL Command for Integration
+  const generateCurlCommand = (method, url, headers, body) => {
+    const headersString = headers
+      .map(({ key, value }) => `-H "${key}: ${value}"`)
+      .join(" \\ \n");
+
+    return `curl -X ${method} ${url} \\ \n${headersString} ${
+      body ? `\\ \n-d '${body}'` : ""
+    }`;
+  };
+
+  // Handle API Save
+  const handleSaveAPI = async () => {
+    if (!currentAPI) return;
+    setLoading(true);
+    try {
+      await addDoc(collection(db, "apiv2"), currentAPI);
+      alert("API saved successfully!");
+      setCurrentAPI(null);
+      setAnalyzedAPIs(analyzedAPIs.filter((api) => api !== currentAPI));
+    } catch (error) {
+      console.error("Error saving API:", error);
+      alert("Failed to save API.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSubmitToFirebase = async () => {
-    try {
-      const categoriesCollection = collection(db, "categories");
-      const apisCollection = collection(db, "apiv2");
+  // Open API for Editing
+  const openAPIForEditing = (api) => {
+    setCurrentAPI(api);
+  };
 
-      for (const item of parsedData) {
-        const { category, ...apiData } = item;
+  // Handle Input Changes for Current API
+  const handleInputChange = (field, value) => {
+    setCurrentAPI({ ...currentAPI, [field]: value });
+  };
 
-        const existingCategories = await getDocs(categoriesCollection);
-        const matchedCategory = existingCategories.docs.find(
-          (doc) => doc.data().name?.toLowerCase() === category?.toLowerCase()
-        );
+  const handleArrayInputChange = (field, index, key, value) => {
+    const updatedArray = [...currentAPI[field]];
+    updatedArray[index][key] = value;
+    setCurrentAPI({ ...currentAPI, [field]: updatedArray });
+  };
 
-        let categoryId = null;
-        if (matchedCategory) {
-          categoryId = matchedCategory.id;
-        } else if (category) {
-          const newCategory = await addDoc(categoriesCollection, {
-            name: category,
-          });
-          categoryId = newCategory.id;
-        }
+  const addArrayField = (field) => {
+    setCurrentAPI({ ...currentAPI, [field]: [...currentAPI[field], { key: "", value: "" }] });
+  };
 
-        await addDoc(apisCollection, { ...apiData, categoryId });
-      }
-
-      alert("APIs imported successfully!");
-    } catch (err) {
-      setError(`Failed to import APIs: ${err.message}`);
-    }
+  const removeArrayField = (field, index) => {
+    const updatedArray = currentAPI[field].filter((_, i) => i !== index);
+    setCurrentAPI({ ...currentAPI, [field]: updatedArray });
   };
 
   return (
-    <div className="p-6 bg-gray-100 dark:bg-gray-900 min-h-screen text-gray-800 dark:text-white">
-      <h1 className="text-2xl font-bold mb-4">Import APIs</h1>
-      <div className="mb-4">
+    <div className="p-6 min-h-screen bg-gray-900 text-white">
+      <h1 className="text-3xl font-bold mb-6">Import APIs</h1>
+      <div className="mb-6">
         <input
           type="file"
-          accept=".csv,.pdf"
+          accept=".json"
           onChange={handleFileUpload}
-          className="p-2 border rounded dark:bg-gray-700 dark:text-white"
+          className="w-full p-2 bg-gray-800 text-white rounded"
         />
       </div>
-      <button
-        onClick={handleFileProcess}
-        className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
-        disabled={loading}
-      >
-        {loading ? "Processing..." : "Process File"}
-      </button>
-      {error && <p className="text-red-500 mt-4">{error}</p>}
-      {parsedData.length > 0 && (
-        <div className="mt-6">
-          <h2 className="text-lg font-semibold mb-2">Preview Data</h2>
-          <pre className="p-4 bg-gray-200 dark:bg-gray-700 rounded max-h-96 overflow-auto">
-            {JSON.stringify(parsedData, null, 2)}
-          </pre>
+
+      {currentAPI ? (
+        <div className="bg-gray-800 p-6 rounded mb-6">
+          <h2 className="text-xl font-bold mb-4">Edit API</h2>
+          <div className="mb-4">
+            <label className="block text-sm font-medium">Name</label>
+            <input
+              type="text"
+              value={currentAPI.name || ""}
+              onChange={(e) => handleInputChange("name", e.target.value)}
+              className="w-full p-2 bg-gray-700 text-white rounded"
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium">Endpoint</label>
+            <input
+              type="text"
+              value={currentAPI.endpoint || ""}
+              onChange={(e) => handleInputChange("endpoint", e.target.value)}
+              className="w-full p-2 bg-gray-700 text-white rounded"
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium">Method</label>
+            <select
+              value={currentAPI.method || "GET"}
+              onChange={(e) => handleInputChange("method", e.target.value)}
+              className="w-full p-2 bg-gray-700 text-white rounded"
+            >
+              {["GET", "POST", "PUT", "DELETE", "PATCH"].map((method) => (
+                <option key={method} value={method}>
+                  {method}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium">Category</label>
+            <select
+              value={currentAPI.categoryId || ""}
+              onChange={(e) => handleInputChange("categoryId", e.target.value)}
+              className="w-full p-2 bg-gray-700 text-white rounded"
+            >
+              <option value="">Select a category</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium">Headers</label>
+            {currentAPI.headers.map((header, index) => (
+              <div key={index} className="flex items-center space-x-2 mb-2">
+                <input
+                  type="text"
+                  placeholder="Key"
+                  value={header.key}
+                  onChange={(e) =>
+                    handleArrayInputChange("headers", index, "key", e.target.value)
+                  }
+                  className="w-1/2 p-2 bg-gray-700 text-white rounded"
+                />
+                <input
+                  type="text"
+                  placeholder="Value"
+                  value={header.value}
+                  onChange={(e) =>
+                    handleArrayInputChange("headers", index, "value", e.target.value)
+                  }
+                  className="w-1/2 p-2 bg-gray-700 text-white rounded"
+                />
+                <button
+                  onClick={() => removeArrayField("headers", index)}
+                  className="text-red-500"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <button onClick={() => addArrayField("headers")} className="text-blue-500">
+              Add Header
+            </button>
+          </div>
           <button
-            onClick={handleSubmitToFirebase}
-            className="mt-4 bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600"
+            onClick={handleSaveAPI}
+            className="bg-blue-500 px-4 py-2 rounded text-white hover:bg-blue-600"
+            disabled={loading}
           >
-            Submit to Firebase
+            {loading ? "Saving..." : "Save API"}
           </button>
         </div>
+      ) : (
+        <>
+          <h2 className="text-xl font-bold mb-4">Preview APIs</h2>
+          <ul>
+            {analyzedAPIs.map((api, index) => (
+              <li
+                key={index}
+                className="p-4 bg-gray-800 mb-2 rounded cursor-pointer"
+                onClick={() => openAPIForEditing(api)}
+              >
+                <h3 className="font-bold">{api.name || "Unnamed API"}</h3>
+                <p className="text-sm text-gray-400">{api.endpoint || "No endpoint"}</p>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </div>
   );

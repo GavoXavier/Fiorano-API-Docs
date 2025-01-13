@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faHome, faSearch } from "@fortawesome/free-solid-svg-icons";
+import { faHome, faSearch, faKey, faListAlt } from "@fortawesome/free-solid-svg-icons";
 import { db } from "../firebase";
 import { collection, getDocs, query, where } from "firebase/firestore";
 
@@ -12,6 +12,8 @@ const UserSidebar = () => {
   const [filteredApis, setFilteredApis] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const navigate = useNavigate();
+
+  const accessTokensCategoryId = "BOl8538AMqXjRpBbRrPB"; // ID for AccessTokens category
 
   // Fetch categories and APIs from Firestore
   useEffect(() => {
@@ -37,7 +39,12 @@ const UserSidebar = () => {
           })
         );
 
-        setCategories(categoriesWithAPIs);
+        // Sort categories alphabetically by name
+        const sortedCategories = categoriesWithAPIs.sort((a, b) =>
+          a.name.localeCompare(b.name)
+        );
+
+        setCategories(sortedCategories);
       } catch (error) {
         console.error("Error fetching categories and APIs:", error);
       }
@@ -117,7 +124,29 @@ const UserSidebar = () => {
             </NavLink>
           </li>
 
-          {/* Categories */}
+          {/* Authentication Button */}
+          <li>
+            <button
+              className="flex items-center w-full px-3 py-2 hover:bg-gray-700 rounded"
+              onClick={() => navigate(`/user/category/${accessTokensCategoryId}`)}
+            >
+              <FontAwesomeIcon icon={faKey} className="mr-3" />
+              <span>Authentication</span>
+            </button>
+          </li>
+
+          {/* Categories Button */}
+          <li>
+            <button
+              className="flex items-center w-full px-3 py-2 hover:bg-gray-700 rounded"
+              onClick={() => navigate("/user/categories")}
+            >
+              <FontAwesomeIcon icon={faListAlt} className="mr-3" />
+              <span>Categories</span>
+            </button>
+          </li>
+
+          {/* Alphabetically Sorted Categories */}
           {categories.map((category) => (
             <li key={category.id}>
               {/* Category Button */}

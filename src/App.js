@@ -6,6 +6,7 @@ import ManageCategories from "./pages/Admin/ManageCategories";
 import ManageAPIs from "./pages/Admin/ManageAPIs";
 import AddAPI from "./pages/Admin/AddAPI";
 import EditAPI from "./pages/Admin/EditAPI";
+import EditAPIOverview from "./pages/Admin/EditAPIOverview"; // Added EditAPIOverview
 import AdminLayout from "./components/AdminLayout";
 import MigrateAPIs from "./pages/Admin/MigrateAPIs";
 import ImportAPIs from "./pages/Admin/ImportAPIs";
@@ -58,6 +59,14 @@ function App() {
           element={
             <AdminLayout>
               <EditAPI />
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/admin/edit-api/:id"
+          element={
+            <AdminLayout>
+              <EditAPIOverview />
             </AdminLayout>
           }
         />
