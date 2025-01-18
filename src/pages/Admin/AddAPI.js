@@ -19,6 +19,7 @@ const AddAPI = () => {
     responseExample: "{}",
     exampleIntegration: "",
     description: "",
+    requiresAuth: false, // New field for authentication toggle
   });
   const [activeTab, setActiveTab] = useState("headers");
 
@@ -52,6 +53,14 @@ const AddAPI = () => {
     setFormData({ ...formData, [field]: updatedField });
   };
 
+  const handleMethodChange = (method) => {
+    setFormData({
+      ...formData,
+      method,
+      requestBody: method === "GET" || method === "DELETE" ? "" : formData.requestBody,
+    });
+  };
+
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -63,7 +72,7 @@ const AddAPI = () => {
         method: formData.method,
         headers: Object.fromEntries(formData.headers.map((h) => [h.key, h.value])),
         queryParams: formData.queryParams.filter((q) => q.key && q.value),
-        requestBody: formData.dataType === "raw" ? JSON.parse(formData.requestBody) : {},
+        requestBody: formData.method === "GET" || formData.method === "DELETE" ? null : formData.requestBody,
         formData: formData.dataType === "form-data" ? formData.formData : [],
         graphqlQuery: formData.dataType === "graphql" ? formData.graphqlQuery : "",
         graphqlVariables:
@@ -73,6 +82,7 @@ const AddAPI = () => {
         description: formData.description,
         dataType: formData.dataType,
         categoryId: formData.selectedCategory,
+        requiresAuth: formData.requiresAuth, // Include the authentication toggle
       };
       await addDoc(collection(db, "apiv2"), apiData);
       alert("API added successfully!");
@@ -91,6 +101,7 @@ const AddAPI = () => {
         responseExample: "{}",
         exampleIntegration: "",
         description: "",
+        requiresAuth: false,
       });
     } catch (error) {
       console.error("Error adding API:", error);
@@ -111,6 +122,7 @@ const AddAPI = () => {
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full p-3 bg-gray-700 text-white rounded"
+              required
             />
           </div>
           <div className="mb-4">
@@ -120,13 +132,14 @@ const AddAPI = () => {
               value={formData.endpoint}
               onChange={(e) => setFormData({ ...formData, endpoint: e.target.value })}
               className="w-full p-3 bg-gray-700 text-white rounded"
+              required
             />
           </div>
           <div className="mb-4">
             <label className="block mb-2 font-medium">Method</label>
             <select
               value={formData.method}
-              onChange={(e) => setFormData({ ...formData, method: e.target.value })}
+              onChange={(e) => handleMethodChange(e.target.value)}
               className="w-full p-3 bg-gray-700 text-white rounded"
             >
               {"GET POST PUT DELETE PATCH".split(" ").map((method) => (
@@ -150,6 +163,19 @@ const AddAPI = () => {
                 </option>
               ))}
             </select>
+          </div>
+          <div className="mb-4">
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={formData.requiresAuth}
+                onChange={(e) =>
+                  setFormData({ ...formData, requiresAuth: e.target.checked })
+                }
+                className="mr-2"
+              />
+              Requires Authentication
+            </label>
           </div>
 
           {/* Headers, Query Params, Body Tabs */}
@@ -240,7 +266,7 @@ const AddAPI = () => {
                 </button>
               </div>
             )}
-            {activeTab === "body" && (
+            {activeTab === "body" && formData.method !== "GET" && formData.method !== "DELETE" && (
               <div>
                 <textarea
                   value={formData.requestBody}

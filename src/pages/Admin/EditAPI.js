@@ -7,13 +7,20 @@ const EditAPI = () => {
   const [apis, setApis] = useState([]); // List of APIs
   const [selectedApi, setSelectedApi] = useState(null); // API selected for editing
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState(""); // Search term for filtering APIs
+  const [filteredApis, setFilteredApis] = useState([]); // Filtered list of APIs
 
   // Fetch APIs from Firestore
   useEffect(() => {
     const fetchAPIs = async () => {
       try {
         const apiSnapshot = await getDocs(collection(db, "apiv2"));
-        setApis(apiSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        const apis = apiSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setApis(apis);
+        setFilteredApis(apis);
       } catch (error) {
         console.error("Error fetching APIs: ", error);
       } finally {
@@ -24,6 +31,14 @@ const EditAPI = () => {
     fetchAPIs();
   }, []);
 
+  // Filter APIs based on search term
+  useEffect(() => {
+    const filtered = apis.filter((api) =>
+      api.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredApis(filtered);
+  }, [searchTerm, apis]);
+
   if (loading) {
     return <p>Loading APIs...</p>;
   }
@@ -32,9 +47,20 @@ const EditAPI = () => {
     <div className="p-6 min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white">
       <h1 className="text-2xl font-bold mb-6">Edit APIs</h1>
 
+      {/* Search Bar */}
+      <div className="mb-6">
+        <input
+          type="text"
+          placeholder="Search APIs..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="p-3 w-full sm:w-1/3 border rounded dark:bg-gray-700 dark:text-white"
+        />
+      </div>
+
       {/* List of APIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {apis.map((api) => (
+        {filteredApis.map((api) => (
           <div
             key={api.id}
             className="bg-white dark:bg-gray-800 p-4 rounded shadow hover:shadow-lg cursor-pointer"
@@ -44,7 +70,7 @@ const EditAPI = () => {
             <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
               {api.endpoint}
             </p>
-            <div className="mt-2">
+            <div className="mt-2 flex space-x-2">
               <span
                 className={`px-3 py-1 rounded-full text-xs ${
                   api.method === "GET"
@@ -60,6 +86,11 @@ const EditAPI = () => {
               >
                 {api.method}
               </span>
+              {api.requiresAuth && (
+                <span className="px-3 py-1 rounded-full text-xs bg-red-100 text-red-800">
+                  Auth Required
+                </span>
+              )}
             </div>
           </div>
         ))}
@@ -73,6 +104,11 @@ const EditAPI = () => {
           onUpdate={(updatedApi) => {
             // Update the API list locally after saving changes
             setApis((prevApis) =>
+              prevApis.map((api) =>
+                api.id === updatedApi.id ? updatedApi : api
+              )
+            );
+            setFilteredApis((prevApis) =>
               prevApis.map((api) =>
                 api.id === updatedApi.id ? updatedApi : api
               )

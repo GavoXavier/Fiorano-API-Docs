@@ -100,6 +100,11 @@ const AdminDashboard = () => {
                     {api.method}
                   </span>
                 )}
+                {api.requiresAuth && (
+                  <span className="px-3 py-1 rounded-full text-xs bg-red-100 text-red-800">
+                    Auth Required
+                  </span>
+                )}
               </div>
             </div>
           ))
@@ -153,6 +158,12 @@ const AdminDashboard = () => {
                   <tr>
                     <th className="px-4 py-2 font-medium">Description:</th>
                     <td className="px-4 py-2">{selectedApi.description}</td>
+                  </tr>
+                  <tr>
+                    <th className="px-4 py-2 font-medium">Requires Auth:</th>
+                    <td className="px-4 py-2">
+                      {selectedApi.requiresAuth ? "Yes" : "No"}
+                    </td>
                   </tr>
                   <tr>
                     <th className="px-4 py-2 font-medium">Example Integration:</th>

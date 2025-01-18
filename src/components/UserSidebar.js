@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faHome, faSearch, faKey, faListAlt } from "@fortawesome/free-solid-svg-icons";
+import { faHome, faSearch, faKey, faListAlt, faSignInAlt } from "@fortawesome/free-solid-svg-icons";
 import { db } from "../firebase";
 import { collection, getDocs, query, where } from "firebase/firestore";
 
@@ -12,8 +12,6 @@ const UserSidebar = () => {
   const [filteredApis, setFilteredApis] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const navigate = useNavigate();
-
-  const accessTokensCategoryId = "BOl8538AMqXjRpBbRrPB"; // ID for AccessTokens category
 
   // Fetch categories and APIs from Firestore
   useEffect(() => {
@@ -72,6 +70,10 @@ const UserSidebar = () => {
     }
   }, [searchTerm, categories]);
 
+  const handleAdminRedirect = () => {
+    navigate("/admin/login");
+  };
+
   return (
     <aside className="w-80 bg-gray-900 text-gray-200 shadow-lg flex flex-col h-screen">
       {/* Header */}
@@ -128,7 +130,7 @@ const UserSidebar = () => {
           <li>
             <button
               className="flex items-center w-full px-3 py-2 hover:bg-gray-700 rounded"
-              onClick={() => navigate(`/user/category/${accessTokensCategoryId}`)}
+              onClick={() => navigate(`/user/authentication`)} // Navigate to AuthPage
             >
               <FontAwesomeIcon icon={faKey} className="mr-3" />
               <span>Authentication</span>
@@ -143,6 +145,17 @@ const UserSidebar = () => {
             >
               <FontAwesomeIcon icon={faListAlt} className="mr-3" />
               <span>Categories</span>
+            </button>
+          </li>
+
+          {/* Admin Login Button */}
+          <li>
+            <button
+              className="flex items-center w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded"
+              onClick={handleAdminRedirect}
+            >
+              <FontAwesomeIcon icon={faSignInAlt} className="mr-3" />
+              <span>Login as Admin</span>
             </button>
           </li>
 

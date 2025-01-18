@@ -1,5 +1,7 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { auth } from "./firebase";
 import AdminLogin from "./pages/Admin/AdminLogin";
 import AdminDashboard from "./pages/Admin/AdminDashboard";
 import ManageCategories from "./pages/Admin/ManageCategories";
@@ -15,6 +17,18 @@ import Home from "./pages/User/Home"; // User Home Page
 import APIOverview from "./pages/User/APIOverview"; // Example API Overview Page
 import Categories from "./pages/User/Categories"; // Categories Page
 import CategoryDetails from "./pages/User/CategoryDetails"; // Category Details Page
+import AuthPage from "./pages/User/AuthPage"; // Added AuthPage
+
+// Admin Protected Route
+const AdminProtectedRoute = ({ element }) => {
+  const [user, loading] = useAuthState(auth);
+
+  if (loading) {
+    return <div className="text-center mt-10">Loading...</div>;
+  }
+
+  return user ? element : <Navigate to="/admin/login" />;
+};
 
 function App() {
   return (
@@ -25,65 +39,97 @@ function App() {
         <Route
           path="/admin/dashboard"
           element={
-            <AdminLayout>
-              <AdminDashboard />
-            </AdminLayout>
+            <AdminProtectedRoute
+              element={
+                <AdminLayout>
+                  <AdminDashboard />
+                </AdminLayout>
+              }
+            />
           }
         />
         <Route
           path="/admin/manage-categories"
           element={
-            <AdminLayout>
-              <ManageCategories />
-            </AdminLayout>
+            <AdminProtectedRoute
+              element={
+                <AdminLayout>
+                  <ManageCategories />
+                </AdminLayout>
+              }
+            />
           }
         />
         <Route
           path="/admin/manage-apis"
           element={
-            <AdminLayout>
-              <ManageAPIs />
-            </AdminLayout>
+            <AdminProtectedRoute
+              element={
+                <AdminLayout>
+                  <ManageAPIs />
+                </AdminLayout>
+              }
+            />
           }
         />
         <Route
           path="/admin/add-api"
           element={
-            <AdminLayout>
-              <AddAPI />
-            </AdminLayout>
+            <AdminProtectedRoute
+              element={
+                <AdminLayout>
+                  <AddAPI />
+                </AdminLayout>
+              }
+            />
           }
         />
         <Route
           path="/admin/edit-api"
           element={
-            <AdminLayout>
-              <EditAPI />
-            </AdminLayout>
+            <AdminProtectedRoute
+              element={
+                <AdminLayout>
+                  <EditAPI />
+                </AdminLayout>
+              }
+            />
           }
         />
         <Route
           path="/admin/edit-api/:id"
           element={
-            <AdminLayout>
-              <EditAPIOverview />
-            </AdminLayout>
+            <AdminProtectedRoute
+              element={
+                <AdminLayout>
+                  <EditAPIOverview />
+                </AdminLayout>
+              }
+            />
           }
         />
         <Route
           path="/admin/migrate-apis"
           element={
-            <AdminLayout>
-              <MigrateAPIs />
-            </AdminLayout>
+            <AdminProtectedRoute
+              element={
+                <AdminLayout>
+                  <MigrateAPIs />
+                </AdminLayout>
+              }
+            />
           }
         />
         <Route
           path="/admin/import-apis"
           element={
-            <AdminLayout>
-              <ImportAPIs />
-            </AdminLayout>
+            <AdminProtectedRoute
+              element={
+                <AdminLayout>
+                  <ImportAPIs />
+                </AdminLayout>
+              }
+            />
           }
         />
 
@@ -117,6 +163,14 @@ function App() {
           element={
             <Layout>
               <CategoryDetails />
+            </Layout>
+          }
+        />
+        <Route
+          path="/user/authentication"
+          element={
+            <Layout>
+              <AuthPage />
             </Layout>
           }
         />

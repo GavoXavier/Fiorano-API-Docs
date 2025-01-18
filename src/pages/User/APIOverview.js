@@ -99,25 +99,27 @@ const APIOverview = () => {
         </div>
 
         {/* Base URL */}
-        <div>
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Base URL</h2>
-          <input
-            type="text"
-            readOnly
-            value={apiDetails.endpoint}
-            className="w-full mt-2 p-3 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg border border-gray-300 dark:border-gray-600"
-          />
-        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Base URL</h2>
+            <input
+              type="text"
+              readOnly
+              value={apiDetails.endpoint}
+              className="w-full mt-2 p-3 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg border border-gray-300 dark:border-gray-600"
+            />
+          </div>
 
-        {/* Authentication Token */}
-        <div>
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Authentication Token</h2>
-          <input
-            type="text"
-            readOnly
-            value="Bearer YOUR_TOKEN_HERE"
-            className="w-full mt-2 p-3 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg border border-gray-300 dark:border-gray-600"
-          />
+          {/* Authentication */}
+          <div>
+            <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Authentication</h2>
+            <input
+              type="text"
+              readOnly
+              value={apiDetails.requiresAuth ? "Bearer YOUR_TOKEN_HERE" : "No Authentication Required"}
+              className="w-full mt-2 p-3 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg border border-gray-300 dark:border-gray-600"
+            />
+          </div>
         </div>
 
         {/* Headers */}

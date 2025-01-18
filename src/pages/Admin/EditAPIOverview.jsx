@@ -25,19 +25,22 @@ const EditAPIOverview = ({ api, onClose, onUpdate }) => {
     setEditFormData({ ...editFormData, [name]: value });
   };
 
-  // Handle map-like fields (e.g., headers, requestBody, responseExample)
+  // Handle toggle for requiresAuth
+  const handleToggleAuth = () => {
+    setEditFormData((prev) => ({ ...prev, requiresAuth: !prev.requiresAuth }));
+  };
+
+  // Handle map-like fields (e.g., headers, queryParams, responseExample)
   const handleMapChange = (field, key, value) => {
     const updatedField = { ...editFormData[field], [key]: value };
     setEditFormData({ ...editFormData, [field]: updatedField });
   };
 
-  // Add a new key-value pair to map-like fields
   const addMapField = (field) => {
     const updatedField = { ...editFormData[field], "": "" };
     setEditFormData({ ...editFormData, [field]: updatedField });
   };
 
-  // Remove a key-value pair from map-like fields
   const removeMapField = (field, key) => {
     const updatedField = { ...editFormData[field] };
     delete updatedField[key];
@@ -51,8 +54,8 @@ const EditAPIOverview = ({ api, onClose, onUpdate }) => {
       const apiRef = doc(db, "apiv2", api.id);
       await updateDoc(apiRef, editFormData);
       alert("API updated successfully!");
-      onUpdate(editFormData); // Notify parent component about the update
-      onClose(); // Close dialog
+      onUpdate(editFormData);
+      onClose();
     } catch (error) {
       console.error("Error updating API: ", error);
       alert("Failed to update API.");
@@ -64,8 +67,8 @@ const EditAPIOverview = ({ api, onClose, onUpdate }) => {
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-3/4 max-w-4xl overflow-y-auto max-h-[90vh]">
         <h2 className="text-xl font-bold mb-4">Edit API: {api.name}</h2>
         <form onSubmit={handleUpdate}>
-          {/* Scrollable Section */}
           <div className="overflow-y-auto max-h-[70vh]">
+            {/* API Name */}
             <div className="mb-4">
               <label htmlFor="name" className="block text-sm font-medium">
                 API Name
@@ -80,6 +83,7 @@ const EditAPIOverview = ({ api, onClose, onUpdate }) => {
               />
             </div>
 
+            {/* Endpoint */}
             <div className="mb-4">
               <label htmlFor="endpoint" className="block text-sm font-medium">
                 Endpoint
@@ -94,6 +98,7 @@ const EditAPIOverview = ({ api, onClose, onUpdate }) => {
               />
             </div>
 
+            {/* Method */}
             <div className="mb-4">
               <label htmlFor="method" className="block text-sm font-medium">
                 Method
@@ -113,6 +118,7 @@ const EditAPIOverview = ({ api, onClose, onUpdate }) => {
               </select>
             </div>
 
+            {/* Category */}
             <div className="mb-4">
               <label htmlFor="categoryId" className="block text-sm font-medium">
                 Category
@@ -133,6 +139,21 @@ const EditAPIOverview = ({ api, onClose, onUpdate }) => {
               </select>
             </div>
 
+            {/* Requires Authentication */}
+            <div className="mb-4 flex items-center">
+              <label htmlFor="requiresAuth" className="text-sm font-medium mr-4">
+                Requires Authentication
+              </label>
+              <input
+                type="checkbox"
+                id="requiresAuth"
+                name="requiresAuth"
+                checked={editFormData.requiresAuth || false}
+                onChange={handleToggleAuth}
+                className="w-5 h-5"
+              />
+            </div>
+
             {/* Headers */}
             <div className="mb-4">
               <label className="block text-sm font-medium">Headers</label>
@@ -142,18 +163,14 @@ const EditAPIOverview = ({ api, onClose, onUpdate }) => {
                     type="text"
                     placeholder="Key"
                     value={key}
-                    onChange={(e) =>
-                      handleMapChange("headers", e.target.value, value)
-                    }
+                    onChange={(e) => handleMapChange("headers", e.target.value, value)}
                     className="flex-1 p-2 border rounded dark:bg-gray-700 dark:text-white mr-2"
                   />
                   <input
                     type="text"
                     placeholder="Value"
                     value={value}
-                    onChange={(e) =>
-                      handleMapChange("headers", key, e.target.value)
-                    }
+                    onChange={(e) => handleMapChange("headers", key, e.target.value)}
                     className="flex-1 p-2 border rounded dark:bg-gray-700 dark:text-white mr-2"
                   />
                   <button
