@@ -4,37 +4,47 @@ import { collection, getDocs, addDoc } from "firebase/firestore";
 
 const AddAPI = () => {
   const [categories, setCategories] = useState([]);
+  const [schemas, setSchemas] = useState([]); // Fetch schemas from Firestore
+  const [selectedSchema, setSelectedSchema] = useState(null); // Holds the selected schema
   const [formData, setFormData] = useState({
     name: "",
     endpoint: "",
     method: "POST",
-    headers: [{ key: "Content-Type", value: "application/json" }],
-    queryParams: [{ key: "", value: "" }],
-    requestBody: "",
+    headers: [],
+    queryParams: [],
+    requestBody: [],
+    responseBody: [],
+    statusCodes: [],
+    exampleRequestBody: "",
+    exampleResponseBody: "",
     selectedCategory: "",
-    dataType: "raw",
-    formData: [{ key: "", value: "" }],
-    graphqlQuery: "",
-    graphqlVariables: "{}",
-    responseExample: "{}",
-    exampleIntegration: "",
+    requiresAuth: false,
     description: "",
-    requiresAuth: false, // New field for authentication toggle
+    exampleIntegration: "",
   });
+
   const [activeTab, setActiveTab] = useState("headers");
 
-  // Fetch categories from Firestore
+  // Fetch categories and schemas from Firestore
   useEffect(() => {
-    const fetchCategories = async () => {
-      const categorySnapshot = await getDocs(collection(db, "categories"));
-      setCategories(
-        categorySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }))
-      );
+    const fetchData = async () => {
+      try {
+        const categorySnapshot = await getDocs(collection(db, "categories"));
+        const schemaSnapshot = await getDocs(collection(db, "schemas"));
+
+        setCategories(
+          categorySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+        );
+
+        setSchemas(
+          schemaSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+        );
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
     };
-    fetchCategories();
+
+    fetchData();
   }, []);
 
   // Handle dynamic input changes
@@ -45,7 +55,10 @@ const AddAPI = () => {
   };
 
   const addField = (field) => {
-    setFormData({ ...formData, [field]: [...formData[field], { key: "", value: "" }] });
+    setFormData({
+      ...formData,
+      [field]: [...formData[field], { name: "", type: "", description: "" }],
+    });
   };
 
   const removeField = (field, index) => {
@@ -57,8 +70,26 @@ const AddAPI = () => {
     setFormData({
       ...formData,
       method,
-      requestBody: method === "GET" || method === "DELETE" ? "" : formData.requestBody,
+      requestBody: method === "GET" || method === "DELETE" ? [] : formData.requestBody,
     });
+  };
+
+  // Handle schema selection
+  const handleSchemaSelect = (schemaId) => {
+    const schema = schemas.find((s) => s.id === schemaId);
+    if (schema) {
+      setSelectedSchema(schema);
+      setFormData({
+        ...formData,
+        headers: schema.headers || [],
+        queryParams: schema.queryParams || [],
+        requestBody: schema.requestBody || [],
+        responseBody: schema.responseBody || [],
+        statusCodes: schema.responseCodes || [],
+        exampleRequestBody: JSON.stringify(schema.exampleRequestBody || {}, null, 2),
+        exampleResponseBody: JSON.stringify(schema.exampleResponseBody || {}, null, 2),
+      });
+    }
   };
 
   // Handle form submission
@@ -70,39 +101,39 @@ const AddAPI = () => {
         name: formData.name,
         endpoint: formData.endpoint,
         method: formData.method,
-        headers: Object.fromEntries(formData.headers.map((h) => [h.key, h.value])),
-        queryParams: formData.queryParams.filter((q) => q.key && q.value),
-        requestBody: formData.method === "GET" || formData.method === "DELETE" ? null : formData.requestBody,
-        formData: formData.dataType === "form-data" ? formData.formData : [],
-        graphqlQuery: formData.dataType === "graphql" ? formData.graphqlQuery : "",
-        graphqlVariables:
-          formData.dataType === "graphql" ? JSON.parse(formData.graphqlVariables) : {},
-        responseExample: JSON.parse(formData.responseExample),
-        exampleIntegration: formData.exampleIntegration,
-        description: formData.description,
-        dataType: formData.dataType,
+        headers: formData.headers,
+        queryParams: formData.queryParams,
+        requestBody: formData.requestBody,
+        responseBody: formData.responseBody,
+        statusCodes: formData.statusCodes,
+        exampleRequestBody: formData.exampleRequestBody,
+        exampleResponseBody: formData.exampleResponseBody,
         categoryId: formData.selectedCategory,
-        requiresAuth: formData.requiresAuth, // Include the authentication toggle
+        requiresAuth: formData.requiresAuth,
+        description: formData.description,
+        exampleIntegration: formData.exampleIntegration,
       };
+
       await addDoc(collection(db, "apiv2"), apiData);
       alert("API added successfully!");
+      // Reset form
       setFormData({
         name: "",
         endpoint: "",
         method: "POST",
-        headers: [{ key: "Content-Type", value: "application/json" }],
-        queryParams: [{ key: "", value: "" }],
-        requestBody: "",
+        headers: [],
+        queryParams: [],
+        requestBody: [],
+        responseBody: [],
+        statusCodes: [],
+        exampleRequestBody: "",
+        exampleResponseBody: "",
         selectedCategory: "",
-        dataType: "raw",
-        formData: [{ key: "", value: "" }],
-        graphqlQuery: "",
-        graphqlVariables: "{}",
-        responseExample: "{}",
-        exampleIntegration: "",
-        description: "",
         requiresAuth: false,
+        description: "",
+        exampleIntegration: "",
       });
+      setSelectedSchema(null);
     } catch (error) {
       console.error("Error adding API:", error);
       alert("Failed to add API.");
@@ -165,13 +196,26 @@ const AddAPI = () => {
             </select>
           </div>
           <div className="mb-4">
+            <label className="block mb-2 font-medium">Schema</label>
+            <select
+              value={selectedSchema?.id || ""}
+              onChange={(e) => handleSchemaSelect(e.target.value)}
+              className="w-full p-3 bg-gray-700 text-white rounded"
+            >
+              <option value="">Select a schema</option>
+              {schemas.map((schema) => (
+                <option key={schema.id} value={schema.id}>
+                  {schema.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="mb-4">
             <label className="flex items-center">
               <input
                 type="checkbox"
                 checked={formData.requiresAuth}
-                onChange={(e) =>
-                  setFormData({ ...formData, requiresAuth: e.target.checked })
-                }
+                onChange={(e) => setFormData({ ...formData, requiresAuth: e.target.checked })}
                 className="mr-2"
               />
               Requires Authentication
@@ -186,9 +230,7 @@ const AddAPI = () => {
                   key={tab}
                   type="button"
                   onClick={() => setActiveTab(tab)}
-                  className={`px-4 py-2 ${
-                    activeTab === tab ? "bg-blue-600" : "bg-gray-700"
-                  } rounded-l text-white`}
+                  className={`px-4 py-2 ${activeTab === tab ? "bg-blue-600" : "bg-gray-700"} rounded-l text-white`}
                 >
                   {tab.charAt(0).toUpperCase() + tab.slice(1)}
                 </button>
@@ -201,16 +243,23 @@ const AddAPI = () => {
                     <input
                       type="text"
                       placeholder="Key"
-                      value={header.key}
-                      onChange={(e) => handleInputChange("headers", index, "key", e.target.value)}
+                      value={header.name}
+                      onChange={(e) => handleInputChange("headers", index, "name", e.target.value)}
                       className="w-1/2 p-3 bg-gray-700 text-white rounded"
                     />
                     <input
                       type="text"
-                      placeholder="Value"
-                      value={header.value}
-                      onChange={(e) => handleInputChange("headers", index, "value", e.target.value)}
-                      className="w-1/2 p-3 bg-gray-700 text-white rounded"
+                      placeholder="Type"
+                      value={header.type}
+                      onChange={(e) => handleInputChange("headers", index, "type", e.target.value)}
+                      className="w-1/4 p-3 bg-gray-700 text-white rounded"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Description"
+                      value={header.description}
+                      onChange={(e) => handleInputChange("headers", index, "description", e.target.value)}
+                      className="w-1/4 p-3 bg-gray-700 text-white rounded"
                     />
                     <button
                       type="button"
@@ -236,17 +285,24 @@ const AddAPI = () => {
                   <div key={index} className="flex items-center space-x-2 mb-2">
                     <input
                       type="text"
-                      placeholder="Key"
-                      value={param.key}
-                      onChange={(e) => handleInputChange("queryParams", index, "key", e.target.value)}
+                      placeholder="Name"
+                      value={param.name}
+                      onChange={(e) => handleInputChange("queryParams", index, "name", e.target.value)}
                       className="w-1/2 p-3 bg-gray-700 text-white rounded"
                     />
                     <input
                       type="text"
-                      placeholder="Value"
-                      value={param.value}
-                      onChange={(e) => handleInputChange("queryParams", index, "value", e.target.value)}
-                      className="w-1/2 p-3 bg-gray-700 text-white rounded"
+                      placeholder="Type"
+                      value={param.type}
+                      onChange={(e) => handleInputChange("queryParams", index, "type", e.target.value)}
+                      className="w-1/4 p-3 bg-gray-700 text-white rounded"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Description"
+                      value={param.description}
+                      onChange={(e) => handleInputChange("queryParams", index, "description", e.target.value)}
+                      className="w-1/4 p-3 bg-gray-700 text-white rounded"
                     />
                     <button
                       type="button"
@@ -268,13 +324,46 @@ const AddAPI = () => {
             )}
             {activeTab === "body" && formData.method !== "GET" && formData.method !== "DELETE" && (
               <div>
-                <textarea
-                  value={formData.requestBody}
-                  onChange={(e) => setFormData({ ...formData, requestBody: e.target.value })}
-                  placeholder="Enter Request Body (JSON)"
-                  className="w-full p-3 bg-gray-700 text-white rounded"
-                  rows="5"
-                ></textarea>
+                <h3 className="text-lg font-semibold mb-2">Request Body</h3>
+                {formData.requestBody.map((field, index) => (
+                  <div key={index} className="flex items-center space-x-2 mb-2">
+                    <input
+                      type="text"
+                      placeholder="Name"
+                      value={field.name}
+                      onChange={(e) => handleInputChange("requestBody", index, "name", e.target.value)}
+                      className="w-1/3 p-3 bg-gray-700 text-white rounded"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Type"
+                      value={field.type}
+                      onChange={(e) => handleInputChange("requestBody", index, "type", e.target.value)}
+                      className="w-1/3 p-3 bg-gray-700 text-white rounded"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Description"
+                      value={field.description}
+                      onChange={(e) => handleInputChange("requestBody", index, "description", e.target.value)}
+                      className="w-1/3 p-3 bg-gray-700 text-white rounded"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeField("requestBody", index)}
+                      className="text-red-500"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => addField("requestBody")}
+                  className="text-blue-500"
+                >
+                  Add Request Body Field
+                </button>
               </div>
             )}
           </div>
@@ -283,27 +372,113 @@ const AddAPI = () => {
           </button>
         </div>
 
-        {/* Response Example and Integration */}
+        {/* Response and Integration */}
         <div className="bg-gray-800 p-6 rounded-lg shadow">
           <div className="mb-4">
-            <label className="block mb-2 font-medium">Response Example (JSON)</label>
+            <h3 className="text-lg font-semibold mb-2">Response Body</h3>
+            {formData.responseBody.map((field, index) => (
+              <div key={index} className="flex items-center space-x-2 mb-2">
+                <input
+                  type="text"
+                  placeholder="Name"
+                  value={field.name}
+                  onChange={(e) => handleInputChange("responseBody", index, "name", e.target.value)}
+                  className="w-1/3 p-3 bg-gray-700 text-white rounded"
+                />
+                <input
+                  type="text"
+                  placeholder="Type"
+                  value={field.type}
+                  onChange={(e) => handleInputChange("responseBody", index, "type", e.target.value)}
+                  className="w-1/3 p-3 bg-gray-700 text-white rounded"
+                />
+                <input
+                  type="text"
+                  placeholder="Description"
+                  value={field.description}
+                  onChange={(e) => handleInputChange("responseBody", index, "description", e.target.value)}
+                  className="w-1/3 p-3 bg-gray-700 text-white rounded"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeField("responseBody", index)}
+                  className="text-red-500"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => addField("responseBody")}
+              className="text-blue-500"
+            >
+              Add Response Body Field
+            </button>
+          </div>
+          <div className="mb-4">
+            <label className="block mb-2 font-medium">Example Request Body (JSON)</label>
             <textarea
-              value={formData.responseExample}
-              onChange={(e) => setFormData({ ...formData, responseExample: e.target.value })}
-              placeholder="Enter Response Example"
+              value={formData.exampleRequestBody}
+              onChange={(e) =>
+                setFormData({ ...formData, exampleRequestBody: e.target.value })
+              }
               className="w-full p-3 bg-gray-700 text-white rounded"
               rows="5"
             ></textarea>
           </div>
           <div className="mb-4">
-            <label className="block mb-2 font-medium">Integration Code (cURL)</label>
+            <label className="block mb-2 font-medium">Example Response Body (JSON)</label>
             <textarea
-              value={formData.exampleIntegration}
-              onChange={(e) => setFormData({ ...formData, exampleIntegration: e.target.value })}
-              placeholder="Enter cURL Integration Code"
+              value={formData.exampleResponseBody}
+              onChange={(e) =>
+                setFormData({ ...formData, exampleResponseBody: e.target.value })
+              }
               className="w-full p-3 bg-gray-700 text-white rounded"
               rows="5"
             ></textarea>
+          </div>
+          <div className="mb-4">
+            <label className="block mb-2 font-medium">Status Codes</label>
+            {formData.statusCodes.map((code, index) => (
+              <div key={index} className="flex items-center space-x-2 mb-2">
+                <input
+                  type="text"
+                  placeholder="Code"
+                  value={code.code}
+                  onChange={(e) => handleInputChange("statusCodes", index, "code", e.target.value)}
+                  className="w-1/3 p-3 bg-gray-700 text-white rounded"
+                />
+                <input
+                  type="text"
+                  placeholder="Message"
+                  value={code.message}
+                  onChange={(e) => handleInputChange("statusCodes", index, "message", e.target.value)}
+                  className="w-1/3 p-3 bg-gray-700 text-white rounded"
+                />
+                <input
+                  type="text"
+                  placeholder="Description"
+                  value={code.description}
+                  onChange={(e) => handleInputChange("statusCodes", index, "description", e.target.value)}
+                  className="w-1/3 p-3 bg-gray-700 text-white rounded"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeField("statusCodes", index)}
+                  className="text-red-500"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => addField("statusCodes")}
+              className="text-blue-500"
+            >
+              Add Status Code
+            </button>
           </div>
         </div>
       </form>

@@ -83,6 +83,24 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         </li>
         <li>
           <NavLink
+            to="/admin/schemas"
+            className="flex items-center space-x-4 p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+          >
+            <FontAwesomeIcon icon={faCogs} />
+            {isOpen && <span>API Schemas </span>}
+          </NavLink>
+        </li>
+        <li>
+        <NavLink
+            to="/admin/schemas/list"
+            className="flex items-center space-x-4 p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+          >
+            <FontAwesomeIcon icon={faCogs} />
+            {isOpen && <span>EDIT API Schemas </span>}
+          </NavLink>
+        </li>
+        <li>
+          <NavLink
             to="/admin/manage-categories"
             className="flex items-center space-x-4 p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
           >

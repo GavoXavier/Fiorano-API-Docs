@@ -2,6 +2,8 @@ import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "./firebase";
+
+// Admin Pages
 import AdminLogin from "./pages/Admin/AdminLogin";
 import AdminDashboard from "./pages/Admin/AdminDashboard";
 import ManageCategories from "./pages/Admin/ManageCategories";
@@ -12,6 +14,12 @@ import EditAPIOverview from "./pages/Admin/EditAPIOverview"; // Added EditAPIOve
 import AdminLayout from "./components/AdminLayout";
 import MigrateAPIs from "./pages/Admin/MigrateAPIs";
 import ImportAPIs from "./pages/Admin/ImportAPIs";
+import Schemas from "./pages/Admin/Schemas";
+import SchemaList from "./pages/Admin/SchemaList";
+
+
+
+// Users Pages
 import Layout from "./pages/User/Layout"; // User Layout
 import Home from "./pages/User/Home"; // User Home Page
 import APIOverview from "./pages/User/APIOverview"; // Example API Overview Page
@@ -35,7 +43,11 @@ function App() {
     <Router>
       <Routes>
         {/* Admin Routes */}
-        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route 
+        path="/admin/login" 
+        element={<AdminLogin />} 
+        />
+
         <Route
           path="/admin/dashboard"
           element={
@@ -60,6 +72,30 @@ function App() {
             />
           }
         />
+         <Route
+          path="/admin/schemas"
+          element={
+            <AdminProtectedRoute
+              element={
+                <AdminLayout>
+                  <Schemas />
+                </AdminLayout>
+              }
+            />
+          }
+        />
+        <Route
+  path="/admin/schemas/list"
+  element={
+    <AdminProtectedRoute
+      element={
+        <AdminLayout>
+          <SchemaList />
+        </AdminLayout>
+      }
+    />
+  }
+/>
         <Route
           path="/admin/manage-apis"
           element={
