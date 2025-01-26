@@ -8,6 +8,8 @@ const APIOverview = () => {
   const [apiDetails, setApiDetails] = useState(null);
   const [categoryDetails, setCategoryDetails] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showRequestExample, setShowRequestExample] = useState(false);
+  const [showResponseExample, setShowResponseExample] = useState(false);
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -17,9 +19,11 @@ const APIOverview = () => {
           const apiData = apiDoc.data();
           setApiDetails(apiData);
 
-          const categoryDoc = await getDoc(doc(db, "categories", apiData.categoryId));
-          if (categoryDoc.exists()) {
-            setCategoryDetails({ id: categoryDoc.id, ...categoryDoc.data() });
+          if (apiData.categoryId) {
+            const categoryDoc = await getDoc(doc(db, "categories", apiData.categoryId));
+            if (categoryDoc.exists()) {
+              setCategoryDetails({ id: categoryDoc.id, ...categoryDoc.data() });
+            }
           }
         } else {
           console.error("API not found");
@@ -49,6 +53,22 @@ const APIOverview = () => {
       </div>
     );
   }
+
+  // Format headers and body fields
+  const formatHeaders = (headers) =>
+    headers.length > 0
+      ? headers.map((header) => `${header.key || "null"}: ${header.value || "null"}`).join("\n")
+      : "No headers available.";
+
+  const formatBodyFields = (fields) =>
+    fields.length > 0
+      ? fields.map((field) => `"${field.name}": "${field.type}"`).join(",\n")
+      : "No fields available.";
+
+  const formatStatusCodes = (statusCodes) =>
+    statusCodes.length > 0
+      ? statusCodes.map((code) => `${code.code}: ${code.description}`).join("\n")
+      : "No status codes available.";
 
   return (
     <div className="p-8 bg-gray-100 dark:bg-gray-900 min-h-screen">
@@ -122,45 +142,77 @@ const APIOverview = () => {
           </div>
         </div>
 
-        {/* Headers */}
+        {/* Headers
         <div>
           <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Headers</h2>
-          <div className="w-full mt-2 p-3 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg border border-gray-300 dark:border-gray-600 h-28 overflow-y-auto custom-scrollbar">
-            <pre>{JSON.stringify(apiDetails.headers, null, 2)}</pre>
-          </div>
+          <textarea
+            readOnly
+            value={formatHeaders(apiDetails.headers || [])}
+            className="w-full mt-2 p-3 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg border border-gray-300 dark:border-gray-600 h-28 overflow-y-auto custom-scrollbar"
+          />
+        </div> */}
+
+        {/* Request Body */}
+        <div>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Request Body</h2>
+          <textarea
+            readOnly
+            value={formatBodyFields(apiDetails.requestBody || [])}
+            className="w-full mt-2 p-3 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg border border-gray-300 dark:border-gray-600 h-28 overflow-y-auto custom-scrollbar"
+          />
+          <button
+            onClick={() => setShowRequestExample(!showRequestExample)}
+            className="mt-2 text-blue-500"
+          >
+            {showRequestExample ? "Hide Example" : "Show Example"}
+          </button>
+          {showRequestExample && (
+            <div className="mt-2 p-3 bg-gray-200 dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-600">
+              <pre>{apiDetails.exampleRequestBody || "No example available."}</pre>
+            </div>
+          )}
         </div>
 
-        {/* Body */}
+        {/* Response Body */}
         <div>
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Body</h2>
-          <div className="w-full mt-2 p-3 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg border border-gray-300 dark:border-gray-600 h-28 overflow-y-auto custom-scrollbar">
-            <pre>{JSON.stringify(apiDetails.requestBody, null, 2)}</pre>
-          </div>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Response Body</h2>
+          <textarea
+            readOnly
+            value={formatBodyFields(apiDetails.responseBody || [])}
+            className="w-full mt-2 p-3 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg border border-gray-300 dark:border-gray-600 h-28 overflow-y-auto custom-scrollbar"
+          />
+          <button
+            onClick={() => setShowResponseExample(!showResponseExample)}
+            className="mt-2 text-blue-500"
+          >
+            {showResponseExample ? "Hide Example" : "Show Example"}
+          </button>
+          {showResponseExample && (
+            <div className="mt-2 p-3 bg-gray-200 dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-600">
+              <pre>{apiDetails.exampleResponseBody || "No example available."}</pre>
+            </div>
+          )}
         </div>
 
-        {/* Response */}
+        {/* Status Codes */}
         <div>
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Response</h2>
-          <div className="w-full mt-2 p-3 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg border border-gray-300 dark:border-gray-600 h-28 overflow-y-auto custom-scrollbar">
-            <pre>{JSON.stringify(apiDetails.responseExample, null, 2)}</pre>
-          </div>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Status Codes</h2>
+          <textarea
+            readOnly
+            value={formatStatusCodes(apiDetails.statusCodes || [])}
+            className="w-full mt-2 p-3 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg border border-gray-300 dark:border-gray-600 h-28 overflow-y-auto custom-scrollbar"
+          />
         </div>
 
         {/* Example Integration */}
         <div>
           <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Example Integration</h2>
-          <div className="flex items-center space-x-4 mt-4">
-            <img
-              src="/path-to-curl-logo.png"
-              alt="cURL"
-              className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-600"
-            />
-            <textarea
-              readOnly
-              value={apiDetails.exampleIntegration}
-              className="w-full p-3 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg border border-gray-300 dark:border-gray-600 h-28 overflow-y-auto custom-scrollbar"
-            />
-          </div>
+          <textarea
+            readOnly
+            value={apiDetails.exampleIntegration || "No example integration available."}
+            className="w-full p-3 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg border border-gray-300 dark:border-gray-600"
+            rows="5"
+          ></textarea>
         </div>
       </div>
     </div>

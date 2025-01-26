@@ -134,25 +134,50 @@ const AdminDashboard = () => {
                   <tr>
                     <th className="px-4 py-2 font-medium">Headers:</th>
                     <td className="px-4 py-2">
-                      <pre className="bg-gray-100 dark:bg-gray-700 p-2 rounded">
-                        {JSON.stringify(selectedApi.headers, null, 2)}
-                      </pre>
+                      <ul>
+                        {selectedApi.headers && selectedApi.headers.length > 0 ? (
+                          selectedApi.headers.map((header, index) => (
+                            <li key={index}>
+                              {header.name || "null"}:{" "}
+                              {header.description || "null"}
+                            </li>
+                          ))
+                        ) : (
+                          <li>null</li>
+                        )}
+                      </ul>
                     </td>
                   </tr>
                   <tr>
                     <th className="px-4 py-2 font-medium">Request Body:</th>
                     <td className="px-4 py-2">
-                      <pre className="bg-gray-100 dark:bg-gray-700 p-2 rounded">
-                        {JSON.stringify(selectedApi.requestBody, null, 2)}
-                      </pre>
+                      <ul>
+                        {selectedApi.requestBody && selectedApi.requestBody.length > 0 ? (
+                          selectedApi.requestBody.map((body, index) => (
+                            <li key={index}>
+                              {body.name || "null"}: {body.type || "null"}
+                            </li>
+                          ))
+                        ) : (
+                          <li>null</li>
+                        )}
+                      </ul>
                     </td>
                   </tr>
                   <tr>
-                    <th className="px-4 py-2 font-medium">Response Example:</th>
+                    <th className="px-4 py-2 font-medium">Response Body:</th>
                     <td className="px-4 py-2">
-                      <pre className="bg-gray-100 dark:bg-gray-700 p-2 rounded">
-                        {JSON.stringify(selectedApi.responseExample, null, 2)}
-                      </pre>
+                      <ul>
+                        {selectedApi.responseBody && selectedApi.responseBody.length > 0 ? (
+                          selectedApi.responseBody.map((response, index) => (
+                            <li key={index}>
+                              {response.name || "null"}: {response.type || "null"}
+                            </li>
+                          ))
+                        ) : (
+                          <li>null</li>
+                        )}
+                      </ul>
                     </td>
                   </tr>
                   <tr>
@@ -166,8 +191,36 @@ const AdminDashboard = () => {
                     </td>
                   </tr>
                   <tr>
-                    <th className="px-4 py-2 font-medium">Example Integration:</th>
-                    <td className="px-4 py-2">{selectedApi.exampleIntegration}</td>
+                    <th className="px-4 py-2 font-medium">Example Request:</th>
+                    <td className="px-4 py-2">
+                      <pre className="bg-gray-100 dark:bg-gray-700 p-2 rounded">
+                        {selectedApi.exampleRequestBody || "null"}
+                      </pre>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th className="px-4 py-2 font-medium">Example Response:</th>
+                    <td className="px-4 py-2">
+                      <pre className="bg-gray-100 dark:bg-gray-700 p-2 rounded">
+                        {selectedApi.exampleResponseBody || "null"}
+                      </pre>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th className="px-4 py-2 font-medium">Status Codes:</th>
+                    <td className="px-4 py-2">
+                      <ul>
+                        {selectedApi.statusCodes && selectedApi.statusCodes.length > 0 ? (
+                          selectedApi.statusCodes.map((code, index) => (
+                            <li key={index}>
+                              {code.code || "null"}: {code.description || "null"}
+                            </li>
+                          ))
+                        ) : (
+                          <li>null</li>
+                        )}
+                      </ul>
+                    </td>
                   </tr>
                 </tbody>
               </table>
