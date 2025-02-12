@@ -11,7 +11,7 @@
     "@mui/icons-material": "^6.2.1",
     "@mui/material": "^6.2.1",
     "cra-template": "1.2.0",
-    "firebase": "^11.1.0",
+    "firebase": "^11.2.0",
     "https-browserify": "^1.0.0",
     "papaparse": "^5.4.1",
     "pdf-lib": "^1.17.1",
